@@ -24,16 +24,17 @@ Requires **Go 1.24.2+** (latest stable recommended)
 
 ```sh
 go build -o hl-tickers .
+
 ./hl-tickers --no-prompt
 ```
 
 ## Usage
 
 ```sh
-hl-tickers                      # first run prompts (optionally) for a wallet
-hl-tickers --no-prompt          # skip the prompt
-hl-tickers --add BTC,GOLD,SPX   # preload symbols for this run
-hl-tickers --version
+./hl-tickers                      # first run prompts (optionally) for a wallet
+./hl-tickers --no-prompt          # skip the prompt
+./hl-tickers --add BTC,GOLD,SPX   # preload symbols for this run
+./hl-tickers --version
 ```
 
 Set a wallet (for live perp positions) via the first-run prompt, the in-app `w` key, or the `wallet:` field in the config file.
@@ -68,7 +69,7 @@ In the asset explorer: `t` cycles the chart timeframe, `f` favourites, `esc` ret
 
 ## Configuration
 
-State is written automatically to `~/.config/hl-tickers/config.yaml`. No database
+State is written to `~/.config/hl-tickers/config.yaml`. No database
 
 ```yaml
 wallet: "0x…"            # optional public address
