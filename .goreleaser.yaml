@@ -1,0 +1,41 @@
+version: 2
+
+project_name: hl-tickers
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: hl-tickers
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+brews:
+  - name: hl-tickers
+    repository:
+      owner: brayden967
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/brayden967/hl-tickers"
+    description: "Fast terminal market watcher powered by Hyperliquid — no keys, no accounts"
+    license: MIT
+    install: |
+      bin.install "hl-tickers"
+    test: |
+      system "#{bin}/hl-tickers", "--version"
