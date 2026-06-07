@@ -116,14 +116,14 @@ func isForexPair(up string) bool {
 	return fiat[up[:3]] && fiat[up[3:]]
 }
 
-// Fetches the native crypto perps plus every builder dex (HIP-3)
-func BuildUniverse(ctx context.Context, c *Client) (*Universe, error) {
+// BuildUniverse fetches the native crypto perps plus every builder dex (HIP-3)
+func BuildUniverse(ctx context.Context, c *Client) (*Universe, bool, error) {
 	listings := make([]Listing, 0, 512)
 
 	// 1. Native crypto perps.
 	meta, ctxs, err := c.MetaAndAssetCtxs(ctx, "")
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	for i, a := range meta.Universe {
 		if a.IsDelisted {
@@ -144,14 +144,18 @@ func BuildUniverse(ctx context.Context, c *Client) (*Universe, error) {
 	}
 
 	// 2. Builder-deployed perps (equities/commodities/fx/indices).
+	complete := true
 	dexs, err := c.PerpDexs(ctx)
-	if err == nil {
+	if err != nil {
+		complete = false
+	} else {
 		for _, d := range dexs {
 			if d == nil || d.Name == "" {
 				continue
 			}
 			dmeta, dctxs, derr := c.MetaAndAssetCtxs(ctx, d.Name)
 			if derr != nil {
+				complete = false
 				continue
 			}
 			for i, a := range dmeta.Universe {
@@ -184,7 +188,7 @@ func BuildUniverse(ctx context.Context, c *Client) (*Universe, error) {
 
 	u := &Universe{Listings: listings}
 	u.Index()
-	return u, nil
+	return u, complete, nil
 }
 
 // Builds and indexes a Universe from existing listings (e.g. a cache).

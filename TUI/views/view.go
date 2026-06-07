@@ -60,8 +60,6 @@ func (m *Model) renderLoading() string {
 	switch {
 	case m.loadErr != nil:
 		line = style.Down.Render("✗ Could not reach Hyperliquid: " + m.loadErr.Error())
-	case m.coldPrompt && !m.coldPromptDone:
-		line = m.renderColdWalletPrompt()
 	default:
 		spin := style.Accent.Render(spinnerFrames[m.spinnerFrame%len(spinnerFrames)])
 		line = spin + "  " + style.Label.Render("Loading markets from Hyperliquid…")
@@ -69,35 +67,6 @@ func (m *Model) renderLoading() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Center, splashHeader(), "", line)
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, content)
-}
-
-// request wallet address on first run (optional)
-func (m *Model) renderColdWalletPrompt() string {
-	title := style.Accent.Render("Add a wallet for live positions")
-	hint := style.Label.Render("Paste a public 0x address — or press Enter to skip.")
-	input := style.Text.Render(m.walletBuf) + style.Accent.Render("▏")
-	field := lipgloss.NewStyle().
-		Width(46).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(style.ColorDim).
-		Padding(0, 1).
-		Render(input)
-
-	status := style.Dim.Render("⋯ fetching markets…")
-	if m.uni != nil {
-		status = style.Up.Render("✓ markets ready")
-	}
-	if strings.HasPrefix(m.status, "Invalid") {
-		status = style.Down.Render(m.status)
-	}
-	help := style.Help.Render("enter save · esc skip")
-
-	box := lipgloss.NewStyle().
-		Width(54).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(style.ColorAccent).
-		Padding(1, 2)
-	return box.Render(strings.Join([]string{title, hint, "", field, "", status, help}, "\n"))
 }
 
 func (m *Model) renderHelp() string {

@@ -61,6 +61,23 @@ func (s *Store) Add(coin string) bool {
 	return true
 }
 
+// AddFavourite adds coin to the watchlist and marks it as a favourite.
+// Returns true if the coin was not already a favourite (caller should persist).
+func (s *Store) AddFavourite(coin string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.inList[coin] {
+		s.order = append(s.order, coin)
+		s.inList[coin] = true
+		s.seedSnapshot(coin)
+	}
+	if s.favourites[coin] {
+		return false
+	}
+	s.favourites[coin] = true
+	return true
+}
+
 func (s *Store) Remove(coin string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

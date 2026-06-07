@@ -1,8 +1,6 @@
 package views
 
 import (
-	"strings"
-
 	"github.com/brayden967/hl-tickers/TUI/hl"
 	"github.com/brayden967/hl-tickers/TUI/views/detail"
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,9 +8,6 @@ import (
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.phase == phaseLoading {
-		if m.coldPrompt && !m.coldPromptDone {
-			return m.handleColdWalletKey(msg)
-		}
 		if msg.String() == "ctrl+c" {
 			m.cancel()
 			return m, tea.Quit
@@ -163,50 +158,6 @@ func (m *Model) handleWalletKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
-}
-
-func (m *Model) handleColdWalletKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c":
-		m.cancel()
-		return m, tea.Quit
-	case "enter":
-		addr := strings.TrimSpace(m.walletBuf)
-		switch {
-		case addr == "":
-			m.finishColdPrompt("") // skip
-		case hl.IsValidAddress(addr):
-			m.finishColdPrompt(addr)
-		default:
-			m.status = "Invalid address — expected 0x + 40 hex chars"
-		}
-	case "esc":
-		m.finishColdPrompt("") // skip
-	case "backspace":
-		if r := []rune(m.walletBuf); len(r) > 0 {
-			m.walletBuf = string(r[:len(r)-1])
-		}
-	default:
-		if msg.Type == tea.KeyRunes {
-			m.walletBuf += string(msg.Runes)
-		}
-	}
-	return m, nil
-}
-
-// Records the first-run wallet choice and proceeds to the board once the universe is ready. An empty address skips wallet setup
-func (m *Model) finishColdPrompt(addr string) {
-	m.coldPromptDone = true
-	m.walletBuf = ""
-	if addr != "" {
-		m.cfg.Wallet = addr
-		_ = m.cfg.SetWallet(addr)
-		if m.store != nil { // streams already up: pull positions now
-			go m.refreshAccount()
-		}
-		m.status = "Loading positions…"
-	}
-	m.maybeEnterReady()
 }
 
 // Dismisses the runtime help overlay on any key (ctrl+c still quits).

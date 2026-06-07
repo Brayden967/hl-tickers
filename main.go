@@ -20,7 +20,6 @@ var version = "v0.1.0"
 func main() {
 	var (
 		addFlag     string
-		noPrompt    bool
 		showVersion bool
 	)
 
@@ -34,12 +33,11 @@ func main() {
 				fmt.Println("hl-tickers", version)
 				return nil
 			}
-			return run(addFlag, noPrompt)
+			return run(addFlag)
 		},
 	}
 
 	root.Flags().StringVarP(&addFlag, "add", "a", "", "comma-separated symbols to add to the watchlist this run (e.g. BTC,GOLD,SPX)")
-	root.Flags().BoolVar(&noPrompt, "no-prompt", false, "skip the first-run wallet prompt")
 	root.Flags().BoolVar(&showVersion, "version", false, "print version and exit")
 
 	if err := root.Execute(); err != nil {
@@ -48,7 +46,7 @@ func main() {
 	}
 }
 
-func run(addFlag string, noPrompt bool) error {
+func run(addFlag string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "warning: could not read config:", err)
@@ -62,8 +60,6 @@ func run(addFlag string, noPrompt bool) error {
 	// Creates config file for user with sample config blocks commented out
 	_ = cfg.EnsureFile()
 
-	promptWallet := !noPrompt && isInteractive()
-
 	addSymbols := make([]string, 0)
 	for _, raw := range strings.Split(addFlag, ",") {
 		if sym := strings.TrimSpace(raw); sym != "" {
@@ -72,18 +68,10 @@ func run(addFlag string, noPrompt bool) error {
 	}
 
 	client := hl.NewClient()
-	app := views.New(client, cfg, addSymbols, promptWallet)
+	app := views.New(client, cfg, addSymbols)
 
 	// Handle scrollwheel ourselves vs letting terminal handle it since there is multi-rows heights
 	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithFPS(120))
 	_, err = p.Run()
 	return err
-}
-
-func isInteractive() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return (fi.Mode() & os.ModeCharDevice) != 0
 }

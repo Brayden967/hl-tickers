@@ -81,9 +81,7 @@ type Model struct {
 	walletInput bool
 	walletBuf   string
 
-	showHelp       bool // 'h' help overlay (also the cold-start screen)
-	coldPrompt     bool // first-run wallet prompt on the loading screen
-	coldPromptDone bool
+	showHelp bool // 'h' help overlay (also the cold-start screen)
 
 	sort   sortMode
 	acct   market.AccountSummary
@@ -102,7 +100,7 @@ type universeMsg struct {
 	fromCache bool
 }
 
-func New(client *hl.Client, cfg *config.Config, addSymbols []string, promptWallet bool) *Model {
+func New(client *hl.Client, cfg *config.Config, addSymbols []string) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Model{
 		ctx:        ctx,
@@ -111,7 +109,6 @@ func New(client *hl.Client, cfg *config.Config, addSymbols []string, promptWalle
 		cfg:        cfg,
 		addSymbols: addSymbols,
 		phase:      phaseLoading,
-		coldPrompt: promptWallet && cfg.Wallet == "" && len(cfg.Favourites) == 0,
 		wl: watchlist.New(watchlist.Toggles{
 			Spark:   cfg.ShowSpark,
 			Funding: cfg.ShowFunding,
@@ -136,19 +133,18 @@ func (m *Model) loadUniverse() tea.Msg {
 	if uni, ok := config.LoadMarkets(cacheMaxAge); ok {
 		return universeMsg{uni: uni, fromCache: true}
 	}
-	uni, err := hl.BuildUniverse(m.ctx, m.client)
-	if err == nil {
+	uni, complete, err := hl.BuildUniverse(m.ctx, m.client)
+	if err == nil && complete {
 		_ = config.SaveMarkets(uni, time.Now())
 	}
 	return universeMsg{uni: uni, err: err}
 }
 
 // Rebuilds the universe in the background and updates the cache
-//
-//	so the next launch is current (used after a cache hit)
+// so the next launch is current (used after a cache hit)
 func (m *Model) refreshCache() {
-	uni, err := hl.BuildUniverse(m.ctx, m.client)
-	if err == nil {
+	uni, complete, err := hl.BuildUniverse(m.ctx, m.client)
+	if err == nil && complete {
 		_ = config.SaveMarkets(uni, time.Now())
 	}
 }
@@ -163,10 +159,16 @@ func (m *Model) onUniverseReady(msg universeMsg) {
 		favs = resolveDefaults(msg.uni, config.DefaultBoard)
 	}
 	m.store.SeedFavourites(favs)
+	anyAdded := false
 	for _, sym := range m.addSymbols {
 		if l, ok := msg.uni.Resolve(sym); ok {
-			m.store.Add(l.Coin)
+			if m.store.AddFavourite(l.Coin) {
+				anyAdded = true
+			}
 		}
+	}
+	if anyAdded {
+		m.persistFavourites()
 	}
 
 	// Manual positions: resolve friendly coin names to known ids
@@ -195,9 +197,6 @@ func (m *Model) onUniverseReady(msg universeMsg) {
 // Flips to the ready phase once the market list has loaded
 func (m *Model) maybeEnterReady() {
 	if m.phase == phaseReady || m.uni == nil {
-		return
-	}
-	if m.coldPrompt && !m.coldPromptDone {
 		return
 	}
 	m.phase = phaseReady
